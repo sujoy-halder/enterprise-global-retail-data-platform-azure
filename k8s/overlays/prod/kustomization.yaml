@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: retail-data-platform
+resources:
+  - ../../base
+images:
+  - name: retailacr.azurecr.io/retail-ingestion-api
+    newName: REPLACE_WITH_PROD_ACR.azurecr.io/retail-ingestion-api
+    newTag: prod
+patches:
+  - target:
+      kind: ConfigMap
+      name: retail-platform-config
+    patch: |-
+      - op: replace
+        path: /data/ENVIRONMENT
+        value: prod
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: retail-ingestion-api
+    patch: |-
+      - op: replace
+        path: /spec/maxReplicas
+        value: 60

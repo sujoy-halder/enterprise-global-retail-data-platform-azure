@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: dim_product
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+          - unique
+      - name: sku
+        tests:
+          - not_null
+  - name: fct_retail_sales
+    columns:
+      - name: event_id
+        tests:
+          - not_null
+          - unique
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_id
+      - name: gross_amount
+        tests:
+          - not_null
+      - name: sales_channel
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["store", "online"]
+  - name: fct_inventory_position
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+      - name: available_quantity
+        tests:
+          - not_null
+  - name: fct_marketing_spend
+    columns:
+      - name: campaign_id
+        tests:
+          - not_null
+      - name: spend_amount
+        tests:
+          - not_null

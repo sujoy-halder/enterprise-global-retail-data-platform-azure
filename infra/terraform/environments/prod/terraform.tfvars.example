@@ -1,0 +1,17 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+tenant_id       = "00000000-0000-0000-0000-000000000000"
+
+deployment_principal_object_id = "00000000-0000-0000-0000-000000000000"
+aks_admin_group_object_ids     = ["00000000-0000-0000-0000-000000000000"]
+
+name_prefix = "retail"
+location    = "eastus2"
+
+allowed_ip_ranges = ["203.0.113.10/32"]
+
+tags = {
+  owner       = "data-platform"
+  cost_center = "retail-data"
+  compliance  = "sox-pci"
+  criticality = "tier-1"
+}

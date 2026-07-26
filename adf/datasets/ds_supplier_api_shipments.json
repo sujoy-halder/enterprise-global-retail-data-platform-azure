@@ -1,0 +1,18 @@
+{
+  "name": "ds_supplier_api_shipments",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "ls_supplier_api",
+      "type": "LinkedServiceReference"
+    },
+    "type": "RestResource",
+    "typeProperties": {
+      "relativeUrl": "/shipments?modifiedSince=@{dataset().modifiedSince}"
+    },
+    "parameters": {
+      "modifiedSince": {
+        "type": "String"
+      }
+    }
+  }
+}

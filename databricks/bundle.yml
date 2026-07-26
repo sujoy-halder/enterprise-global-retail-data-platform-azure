@@ -1,0 +1,66 @@
+bundle:
+  name: enterprise-global-retail-data-platform
+
+variables:
+  storage_account_name:
+    description: ADLS Gen2 storage account name.
+  environment:
+    description: Deployment environment.
+    default: dev
+  bronze_filesystem:
+    description: Bronze ADLS filesystem.
+    default: bronze
+  silver_filesystem:
+    description: Silver ADLS filesystem.
+    default: silver
+  gold_filesystem:
+    description: Gold ADLS filesystem.
+    default: gold
+
+resources:
+  jobs:
+    retail_medallion_pipeline:
+      name: retail-medallion-pipeline-${var.environment}
+      max_concurrent_runs: 1
+      job_clusters:
+        - job_cluster_key: retail_job_cluster
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: Standard_DS3_v2
+            autoscale:
+              min_workers: 2
+              max_workers: 8
+            data_security_mode: SINGLE_USER
+            spark_conf:
+              spark.databricks.delta.optimizeWrite.enabled: "true"
+              spark.databricks.delta.autoCompact.enabled: "true"
+      tasks:
+        - task_key: bronze_to_silver
+          job_cluster_key: retail_job_cluster
+          notebook_task:
+            notebook_path: ./notebooks/bronze_to_silver.py
+            base_parameters:
+              storage_account_name: ${var.storage_account_name}
+              bronze_filesystem: ${var.bronze_filesystem}
+              silver_filesystem: ${var.silver_filesystem}
+        - task_key: silver_to_gold
+          depends_on:
+            - task_key: bronze_to_silver
+          job_cluster_key: retail_job_cluster
+          notebook_task:
+            notebook_path: ./notebooks/silver_to_gold.py
+            base_parameters:
+              storage_account_name: ${var.storage_account_name}
+              silver_filesystem: ${var.silver_filesystem}
+              gold_filesystem: ${var.gold_filesystem}
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://REPLACE_WITH_DEV_DATABRICKS_WORKSPACE
+  prod:
+    mode: production
+    workspace:
+      host: https://REPLACE_WITH_PROD_DATABRICKS_WORKSPACE

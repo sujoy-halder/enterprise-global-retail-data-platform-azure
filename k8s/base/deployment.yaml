@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-ingestion-api
+  namespace: retail-data-platform
+  labels:
+    app.kubernetes.io/name: retail-ingestion-api
+    app.kubernetes.io/part-of: enterprise-retail-data-platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: retail-ingestion-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: retail-ingestion-api
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: retail-ingestion-api
+      automountServiceAccountToken: true
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: retailacr.azurecr.io/retail-ingestion-api:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: retail-platform-config
+            - secretRef:
+                name: retail-platform-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001

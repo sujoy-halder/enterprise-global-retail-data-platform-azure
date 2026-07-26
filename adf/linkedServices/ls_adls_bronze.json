@@ -1,0 +1,16 @@
+{
+  "name": "ls_adls_bronze",
+  "properties": {
+    "type": "AzureBlobFS",
+    "typeProperties": {
+      "url": "https://REPLACE_WITH_ADLS_ACCOUNT.dfs.core.windows.net"
+    },
+    "connectVia": {
+      "referenceName": "AutoResolveIntegrationRuntime",
+      "type": "IntegrationRuntimeReference"
+    },
+    "annotations": [
+      "managed-identity"
+    ]
+  }
+}

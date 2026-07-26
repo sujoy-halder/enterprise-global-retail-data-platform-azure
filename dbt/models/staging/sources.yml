@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: raw
+    database: RETAIL_DW
+    schema: RAW
+    config:
+      loaded_at_field: event_time
+      freshness:
+        warn_after:
+          count: 2
+          period: hour
+        error_after:
+          count: 6
+          period: hour
+    tables:
+      - name: pos_transactions
+      - name: online_orders
+      - name: inventory_snapshots
+      - name: product_catalog
+      - name: marketing_campaigns

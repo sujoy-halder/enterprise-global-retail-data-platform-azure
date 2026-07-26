@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: retail-platform-config
+  namespace: retail-data-platform
+data:
+  ENVIRONMENT: dev
+  SERVICE_NAME: retail-ingestion-api
+  LOG_LEVEL: INFO
+  EVENTHUB_CONSUMER_GROUP: databricks
+  ADLS_FILESYSTEM_BRONZE: bronze
+  ADLS_FILESYSTEM_SILVER: silver
+  ADLS_FILESYSTEM_GOLD: gold

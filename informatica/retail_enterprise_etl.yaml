@@ -1,0 +1,46 @@
+version: 1
+name: retail-enterprise-etl
+description: Informatica workflow handoff for ERP, CRM, supplier, and warehouse batch feeds.
+secure_agent_group: REPLACE_WITH_INFORMATICA_SECURE_AGENT_GROUP
+connections:
+  erp_source: REPLACE_WITH_ERP_CONNECTION
+  crm_source: REPLACE_WITH_CRM_CONNECTION
+  supplier_api: REPLACE_WITH_SUPPLIER_API_CONNECTION
+  adls_bronze: REPLACE_WITH_ADLS_BRONZE_CONNECTION
+  eventhub_namespace: REPLACE_WITH_EVENTHUB_CONNECTION
+parameters:
+  environment: ${ENVIRONMENT}
+  landing_filesystem: bronze
+  quarantine_path: quarantine/informatica
+workflows:
+  - name: wf_erp_product_catalog_to_bronze
+    schedule: "0 */2 * * *"
+    source: erp_source
+    target: adls_bronze
+    target_path: product_catalog/load_date=${run_date}/
+    dq_rules:
+      - product_id is not null
+      - sku is not null
+      - unit_price >= 0
+  - name: wf_crm_customer_behavior_to_eventhub
+    schedule: "*/15 * * * *"
+    source: crm_source
+    target: eventhub_namespace
+    event_hub: customer-behavior
+    dq_rules:
+      - session_id is not null
+      - event_name is not null
+  - name: wf_supplier_shipments_to_bronze
+    schedule: "*/30 * * * *"
+    source: supplier_api
+    target: adls_bronze
+    target_path: supply_chain_event/load_date=${run_date}/
+    dq_rules:
+      - supplier_id is not null
+      - shipment_id is not null
+      - status is not null
+error_handling:
+  retry_count: 3
+  retry_backoff_seconds: 120
+  quarantine_failed_records: true
+  notify_group: data-platform-oncall

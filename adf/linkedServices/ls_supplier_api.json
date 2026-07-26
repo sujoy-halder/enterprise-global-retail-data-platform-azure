@@ -1,0 +1,14 @@
+{
+  "name": "ls_supplier_api",
+  "properties": {
+    "type": "RestService",
+    "typeProperties": {
+      "url": "https://REPLACE_WITH_SUPPLIER_API_BASE_URL",
+      "enableServerCertificateValidation": true,
+      "authenticationType": "ManagedServiceIdentity"
+    },
+    "annotations": [
+      "supplier-ingestion"
+    ]
+  }
+}

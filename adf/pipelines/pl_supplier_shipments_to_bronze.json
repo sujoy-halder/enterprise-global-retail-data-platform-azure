@@ -1,0 +1,74 @@
+{
+  "name": "pl_supplier_shipments_to_bronze",
+  "properties": {
+    "description": "Incrementally lands supplier shipment events into ADLS Bronze for Databricks processing.",
+    "parameters": {
+      "modifiedSince": {
+        "type": "String"
+      },
+      "loadDate": {
+        "type": "String"
+      }
+    },
+    "activities": [
+      {
+        "name": "Copy supplier shipments to bronze",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.02:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 120,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "RestSource",
+            "httpRequestTimeout": "00:02:00",
+            "requestInterval": "00.00:00:01"
+          },
+          "sink": {
+            "type": "JsonSink",
+            "storeSettings": {
+              "type": "AzureBlobFSWriteSettings"
+            },
+            "formatSettings": {
+              "type": "JsonWriteSettings",
+              "filePattern": "setOfObjects"
+            }
+          },
+          "enableStaging": false
+        },
+        "inputs": [
+          {
+            "referenceName": "ds_supplier_api_shipments",
+            "type": "DatasetReference",
+            "parameters": {
+              "modifiedSince": {
+                "value": "@pipeline().parameters.modifiedSince",
+                "type": "Expression"
+              }
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_bronze_supply_chain",
+            "type": "DatasetReference",
+            "parameters": {
+              "loadDate": {
+                "value": "@pipeline().parameters.loadDate",
+                "type": "Expression"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      "batch-etl",
+      "retail-supply-chain"
+    ]
+  }
+}

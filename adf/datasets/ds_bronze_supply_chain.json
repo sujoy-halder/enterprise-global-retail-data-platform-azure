@@ -1,0 +1,22 @@
+{
+  "name": "ds_bronze_supply_chain",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "ls_adls_bronze",
+      "type": "LinkedServiceReference"
+    },
+    "type": "Json",
+    "typeProperties": {
+      "location": {
+        "type": "AzureBlobFSLocation",
+        "fileSystem": "bronze",
+        "folderPath": "supply_chain_event/load_date=@{dataset().loadDate}"
+      }
+    },
+    "parameters": {
+      "loadDate": {
+        "type": "String"
+      }
+    }
+  }
+}

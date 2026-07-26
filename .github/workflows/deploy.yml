@@ -1,0 +1,134 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [dev, stage, prod]
+      image_tag:
+        description: Image tag to build and deploy
+        required: true
+        default: "0.1.0"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_deployment_principal_object_id: ${{ secrets.AZURE_DEPLOYMENT_OBJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Azure login
+        uses: azure/login@1384c340ab2dda50fed2bee3041d1d87018aa5e8
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Write environment tfvars
+        shell: pwsh
+        env:
+          TERRAFORM_TFVARS_CONTENT: ${{ secrets.TERRAFORM_TFVARS }}
+        run: |
+          if (-not $env:TERRAFORM_TFVARS_CONTENT) {
+            throw "TERRAFORM_TFVARS environment secret is required"
+          }
+          $env:TERRAFORM_TFVARS_CONTENT | Out-File -FilePath "infra/terraform/environments/${{ inputs.environment }}/terraform.auto.tfvars" -Encoding utf8
+
+      - name: Terraform apply
+        run: |
+          terraform -chdir=infra/terraform/environments/${{ inputs.environment }} init
+          terraform -chdir=infra/terraform/environments/${{ inputs.environment }} plan -out=tfplan
+          terraform -chdir=infra/terraform/environments/${{ inputs.environment }} apply -auto-approve tfplan
+          terraform -chdir=infra/terraform/environments/${{ inputs.environment }} output -json > platform-outputs.json
+
+      - name: Build and push images
+        shell: pwsh
+        run: |
+          function Invoke-NativeCommand {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string]$FilePath,
+
+              [Parameter(ValueFromRemainingArguments = $true)]
+              [string[]]$Arguments
+            )
+
+            & $FilePath @Arguments
+            if ($LASTEXITCODE -ne 0) {
+              throw "$FilePath $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+            }
+          }
+
+          $outputs = Get-Content platform-outputs.json | ConvertFrom-Json
+          $acrLoginServer = $outputs.platform.value.acr_login_server
+          $acrName = $acrLoginServer.Split(".")[0]
+          Invoke-NativeCommand az acr login --name $acrName
+          Invoke-NativeCommand docker build -f services/ingestion-api/Dockerfile -t "$acrLoginServer/retail-ingestion-api:${{ inputs.image_tag }}" .
+          Invoke-NativeCommand docker build -f services/stream-processor/Dockerfile -t "$acrLoginServer/retail-stream-processor:${{ inputs.image_tag }}" .
+          Invoke-NativeCommand docker push "$acrLoginServer/retail-ingestion-api:${{ inputs.image_tag }}"
+          Invoke-NativeCommand docker push "$acrLoginServer/retail-stream-processor:${{ inputs.image_tag }}"
+
+      - name: Deploy AKS manifests
+        shell: pwsh
+        run: |
+          function Invoke-NativeCommand {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string]$FilePath,
+
+              [Parameter(ValueFromRemainingArguments = $true)]
+              [string[]]$Arguments
+            )
+
+            & $FilePath @Arguments
+            if ($LASTEXITCODE -ne 0) {
+              throw "$FilePath $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+            }
+          }
+
+          function Invoke-NativeOutput {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string]$FilePath,
+
+              [Parameter(ValueFromRemainingArguments = $true)]
+              [string[]]$Arguments
+            )
+
+            $output = & $FilePath @Arguments
+            if ($LASTEXITCODE -ne 0) {
+              throw "$FilePath $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+            }
+            return $output
+          }
+
+          $outputs = Get-Content platform-outputs.json | ConvertFrom-Json
+          $platform = $outputs.platform.value
+          $acrLoginServer = $platform.acr_login_server
+          Invoke-NativeCommand az aks get-credentials --resource-group $platform.resource_group_name --name $platform.aks_cluster_name --overwrite-existing
+          $rendered = Invoke-NativeOutput kubectl kustomize "k8s/overlays/${{ inputs.environment }}"
+          $rendered = $rendered -replace "REPLACE_WITH_DEV_ACR.azurecr.io", $acrLoginServer
+          $rendered = $rendered -replace "REPLACE_WITH_STAGE_ACR.azurecr.io", $acrLoginServer
+          $rendered = $rendered -replace "REPLACE_WITH_PROD_ACR.azurecr.io", $acrLoginServer
+          $rendered = $rendered -replace "REPLACE_WITH_WORKLOAD_IDENTITY_CLIENT_ID", $platform.ingestion_workload_identity_client_id
+          $rendered | kubectl apply -f -
+          if ($LASTEXITCODE -ne 0) {
+            throw "kubectl apply failed with exit code $LASTEXITCODE"
+          }
