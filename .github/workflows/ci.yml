@@ -47,7 +47,7 @@ jobs:
           dbt --no-version-check --log-path "$RUNNER_TEMP/retail-dbt-logs" parse --profiles-dir . --target-path "$RUNNER_TEMP/retail-dbt-target" --no-partial-parse
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
         with:
           terraform_version: "1.9.8"
 
