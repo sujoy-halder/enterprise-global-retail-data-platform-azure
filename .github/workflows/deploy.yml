@@ -27,7 +27,7 @@ jobs:
       TF_VAR_deployment_principal_object_id: ${{ secrets.AZURE_DEPLOYMENT_OBJECT_ID }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Azure login
         uses: azure/login@1384c340ab2dda50fed2bee3041d1d87018aa5e8
